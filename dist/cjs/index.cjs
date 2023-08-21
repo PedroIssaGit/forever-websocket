@@ -15,9 +15,9 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  */
 class ForeverWebSocket extends _eventemitter.default {
   // Names of properties which are not cloned from underlying WebSocket
-  #ownEventNames = ['connecting', 'delay', 'timeout', 'newListener', 'removeListener', 'reconnected'];
+  #ownEventNames = ["connecting", "delay", "timeout", "newListener", "removeListener", "reconnected"];
   // Property names for `options`
-  #optionsExtendedPropertyNames = ['automaticOpen', 'reconnect', 'timeout', 'ping', 'newWebSocket'];
+  #optionsExtendedPropertyNames = ["automaticOpen", "reconnect", "timeout", "ping", "newWebSocket"];
   // stores constructor parameter - the URL to which to connect
   #address;
   // stores constructor parameter - the URL to which to connect#address
@@ -47,7 +47,7 @@ class ForeverWebSocket extends _eventemitter.default {
    * @param {number} [options.timeout] - timeout in milliseconds after which the websockets reconnects when no messages are received. Defaults to no timeout
    * @param {object} [options.ping] - Controls how ping are sent to websocket server. By default, no ping is sent
    * @param {number} [options.ping.interval] - Ping interval value in milliseconds
-   * @param {array|number|object|string|ArrayBuffer|buffer} [options.ping.data] - The data to send in the ping message
+   * @param {array|number|object|string|ArrayBuffer|buffer|function} [options.ping.data] - The data to send in the ping message
    * @param {boolean} [options.ping.pingFrame=false] - Specifies whether ping should be sent as a ping frame
    * @param {boolean} [options.ping.mask] - Specifies whether `data` should be masked or not
    * @param {function} [options.newWebSocket] - Functions which returns a WebSocket instance. If present it will be called when a new WebSocket is needed when reconnecting. The function could be useful in situations when the new WebSocket connection needs to be created with different parameters when reconnecting (e.g. a timestamp in the headers, or different URL)
@@ -58,12 +58,12 @@ class ForeverWebSocket extends _eventemitter.default {
     // Helper function - Checks if `propertyName` is a method of `obj`
     const isMethod = (obj, propertyName) => {
       const desc = Object.getOwnPropertyDescriptor(obj, propertyName);
-      return !!desc && typeof desc.value === 'function';
+      return !!desc && typeof desc.value === "function";
     };
 
     // Helper function - Checks if `obj` is an object
     const isObject = obj => {
-      return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+      return typeof obj === "object" && obj !== null && !Array.isArray(obj);
     };
 
     // Store address parameter
@@ -71,7 +71,7 @@ class ForeverWebSocket extends _eventemitter.default {
 
     // Store protocol parameter
     let allOptions;
-    if (Array.isArray(protocol) || typeof protocol === 'string') {
+    if (Array.isArray(protocol) || typeof protocol === "string") {
       this.#protocol = protocol;
     }
 
@@ -86,7 +86,7 @@ class ForeverWebSocket extends _eventemitter.default {
     Object.keys(allOptions).forEach(key => {
       if (this.#optionsExtendedPropertyNames.includes(key)) {
         if (isObject(allOptions[key]) && isObject(this.#optionsExtended[key])) {
-          // if key value is an object, keep default values if not specified in parameter `options` 
+          // if key value is an object, keep default values if not specified in parameter `options`
           this.#optionsExtended[key] = {
             ...this.#optionsExtended[key],
             ...allOptions[key]
@@ -103,7 +103,7 @@ class ForeverWebSocket extends _eventemitter.default {
     this.#listenersWebSocket = {};
 
     // Add methods and properties of underlying WebSocket class, except `reservedPropertyNames` which are defined explicitly
-    const reservedPropertyNames = ['close', 'send', 'constructor', 'readyState', 'onopen', 'onmessage', 'onerror', 'onclose', 'addEventListener', 'removeEventListener'];
+    const reservedPropertyNames = ["close", "send", "constructor", "readyState", "onopen", "onmessage", "onerror", "onclose", "addEventListener", "removeEventListener"];
     let propertyNames = Object.getOwnPropertyNames(_ws.default.prototype);
     for (const propertyName of propertyNames) {
       if (reservedPropertyNames.includes(propertyName)) continue;
@@ -119,7 +119,7 @@ class ForeverWebSocket extends _eventemitter.default {
 
     // Defines factory function to handle reconnect
     function createReconnectFactory({
-      strategy = 'fibonacci',
+      strategy = "fibonacci",
       initialDelay = 50,
       maxDelay = 10000,
       randomizeDelay = true,
@@ -189,10 +189,10 @@ class ForeverWebSocket extends _eventemitter.default {
     // Create reconnect manager if needed
     if (this.#optionsExtended?.reconnect !== null) {
       this.#reconnectManager = createReconnectFactory(this.#optionsExtended.reconnect, (retryNumber, lastConnectionTimestamp) => {
-        this.emit('connecting', retryNumber, lastConnectionTimestamp);
+        this.emit("connecting", retryNumber, lastConnectionTimestamp);
         this.connect();
       }, (retryNumber, delay) => {
-        this.emit('delay', retryNumber, delay);
+        this.emit("delay", retryNumber, delay);
       });
     }
     function createPingFactory({
@@ -220,10 +220,18 @@ class ForeverWebSocket extends _eventemitter.default {
         interval: this.#optionsExtended.ping.interval
       }, () => {
         if (this.readyState === 1) {
-          if (typeof this.ping === 'function' && this.#optionsExtended.ping.frame) {
-            this.ping(this.#optionsExtended.ping.data, this.#optionsExtended.ping.mask);
+          if (typeof this.ping === "function" && this.#optionsExtended.ping.frame) {
+            if (typeof this.#optionsExtended.ping.data === "function") {
+              this.ping(this.#optionsExtended.ping.data(), this.#optionsExtended.ping.mask);
+            } else {
+              this.ping(this.#optionsExtended.ping.data, this.#optionsExtended.ping.mask);
+            }
           } else {
-            this.send(this.#optionsExtended.ping.data);
+            if (typeof this.#optionsExtended.ping.data === "function") {
+              this.send(this.#optionsExtended.ping.data());
+            } else {
+              this.send(this.#optionsExtended.ping.data);
+            }
           }
         }
       });
@@ -235,7 +243,7 @@ class ForeverWebSocket extends _eventemitter.default {
       let lastActiveMts;
       function reset() {
         lastActiveMts = Date.now();
-        if (typeof timeoutId?.refresh === 'function') {
+        if (typeof timeoutId?.refresh === "function") {
           timeoutId.refresh();
         } else {
           clearTimeout(timeoutId);
@@ -260,11 +268,11 @@ class ForeverWebSocket extends _eventemitter.default {
     }
 
     // Create timeout manager if needed
-    if (this.#optionsExtended.hasOwnProperty('timeout') && this.#optionsExtended.timeout > 0) {
+    if (this.#optionsExtended.hasOwnProperty("timeout") && this.#optionsExtended.timeout > 0) {
       this.#timeoutManager = createTimeoutFactory({
         timeout: this.#optionsExtended.timeout
       }, lastActiveMts => {
-        this.emit('timeout', lastActiveMts);
+        this.emit("timeout", lastActiveMts);
         this.refresh();
       });
     }
@@ -297,13 +305,13 @@ class ForeverWebSocket extends _eventemitter.default {
       this.#listenersWebSocket[eventName].unshift({
         listener,
         options,
-        method: 'on'
+        method: "on"
       });
     } else {
       this.#listenersWebSocket[eventName] = [{
         listener,
         options,
-        method: 'on'
+        method: "on"
       }];
     }
     if (this.ws) {
@@ -315,7 +323,7 @@ class ForeverWebSocket extends _eventemitter.default {
           once: true
         });
       }
-      if (typeof this.ws.on === 'function') {
+      if (typeof this.ws.on === "function") {
         this.ws.on(eventName, listener, options);
       } else {
         this.ws.addEventListener(eventName, listener, options);
@@ -344,7 +352,7 @@ class ForeverWebSocket extends _eventemitter.default {
       this.#listenersWebSocket[eventName].unshift({
         listener,
         options,
-        method: 'addEventListener'
+        method: "addEventListener"
       });
     } else {
       this.#listenersWebSocket[eventName] = [[listener, options]];
@@ -410,7 +418,7 @@ class ForeverWebSocket extends _eventemitter.default {
     }
 
     // When WebSocket connection is open, restart ping and timeout managers, and reset the reconnect manager
-    this.ws.addEventListener('open', () => {
+    this.ws.addEventListener("open", () => {
       this.#pingManager?.start();
       this.#timeoutManager?.start();
       if (this.#reconnectManager) {
@@ -418,26 +426,26 @@ class ForeverWebSocket extends _eventemitter.default {
         const lastConnectedMts = this.#reconnectManager.lastConnectedMts();
         this.#reconnectManager.reset();
         if (lastConnectedMts) {
-          this.emit('reconnected', retryNumber, lastConnectedMts);
+          this.emit("reconnected", retryNumber, lastConnectedMts);
         }
       }
     });
 
     // When a message is received, reset timeout manager
-    this.ws.addEventListener('message', () => {
+    this.ws.addEventListener("message", () => {
       this.#timeoutManager?.reset();
     });
 
     // When pong is received, refresh timeout manager
     // Note: Not all WebSocket implementations support `on()` method and `pong` event
-    if (typeof this.ws.on === 'function') {
-      this.ws.on('pong', data => {
+    if (typeof this.ws.on === "function") {
+      this.ws.on("pong", data => {
         this.#timeoutManager?.reset();
       });
     }
 
     // When WebSocket closes, stop ping and timeout managers and schedule next reconnect if reconnect manager is defined and not stopped manually.
-    this.ws.addEventListener('close', () => {
+    this.ws.addEventListener("close", () => {
       this.#pingManager?.stop();
       this.#timeoutManager?.stop();
       if (this.#reconnectManager && !this.#reconnectManager.isStopped()) {
@@ -463,7 +471,7 @@ class ForeverWebSocket extends _eventemitter.default {
         }
 
         // Add listener to the WebSocket object using the same method as initially added
-        if (method === 'on' && typeof this.ws.on === 'function') {
+        if (method === "on" && typeof this.ws.on === "function") {
           this.ws.on(eventName, listener, options);
         } else {
           this.ws.addEventListener(eventName, listener, options);
@@ -472,7 +480,7 @@ class ForeverWebSocket extends _eventemitter.default {
     }
 
     // Set event handler properties for the new underlying WebSocket object
-    for (const eventHandlerName of ['onopen', 'onmessage', 'onerror', 'onclose']) {
+    for (const eventHandlerName of ["onopen", "onmessage", "onerror", "onclose"]) {
       if (this[eventHandlerName]) {
         this.ws[eventHandlerName] = this[eventHandlerName];
       }
@@ -490,7 +498,7 @@ class ForeverWebSocket extends _eventemitter.default {
    * @param data
    */
   send(data) {
-    if (typeof data === 'object') {
+    if (typeof data === "object") {
       this.ws.send(JSON.stringify(data));
     } else {
       this.ws.send(data);
@@ -526,7 +534,7 @@ class ForeverWebSocket extends _eventemitter.default {
     this.#pingManager?.stop();
     this.#timeoutManager?.stop();
     this.#reconnectManager?.stop();
-    if (typeof this.ws?.terminate === 'function') {
+    if (typeof this.ws?.terminate === "function") {
       this.ws.terminate();
     } else {
       this.ws.close();
